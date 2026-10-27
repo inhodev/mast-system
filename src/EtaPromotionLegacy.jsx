@@ -1,5 +1,5 @@
 import { isPromotionTarget, promotionSubmissionError } from "./utils/promotionAssignmentPolicy.js";
-import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof } from "./utils/promotionSchoolRules.js";
+import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof, nextPromotionDate } from "./utils/promotionSchoolRules.js";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LEGACY_MEMBER_FIELDS } from "./services/baseService.js";
 import SecureProofImage from "./components/SecureProofImage.jsx";
@@ -450,6 +450,8 @@ function MemberHome(props) {
   var _assignees = useState([]), assignees = _assignees[0], setAssignees = _assignees[1];
   var _members = useState([]), members = _members[0], setMembers = _members[1];
   var _assignmentHistory = useState([]), assignmentHistory = _assignmentHistory[0], setAssignmentHistory = _assignmentHistory[1];
+  var _predictionHistory = useState([]), predictionHistory = _predictionHistory[0], setPredictionHistory = _predictionHistory[1];
+  var _predictionUnavailable = useState(false), predictionUnavailable = _predictionUnavailable[0], setPredictionUnavailable = _predictionUnavailable[1];
   var _records = useState([]), records = _records[0], setRecords = _records[1];
   var _loading = useState(true), loading = _loading[0], setLoading = _loading[1];
   var _showAllAssignees = useState(false), showAllAssignees = _showAllAssignees[0], setShowAllAssignees = _showAllAssignees[1];
@@ -458,14 +460,17 @@ function MemberHome(props) {
 
   var load = useCallback(async function() {
     setLoading(true);
+    setPredictionUnavailable(false);
     var r1 = await fetchVisibleMemberMission(today);
     var missionRow = r1.data || null;
     setMission(missionRow);
     setMyAssignment(null); setMyProof(null); setAssignees([]);
     var rm = await supabase.from("members").select("id,name,gi,school,status");
     setMembers((rm.data || []).filter(function(m) { return (m.status || "active") === "active"; }));
-    var rh = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").lt("mission_date", today).order("mission_date", { ascending: false });
-    setAssignmentHistory((rh.data || []).filter(isPromotionTarget));
+    var rh = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").lte("mission_date", today).order("mission_date", { ascending: false });
+    setPredictionUnavailable(!!rm.error || !!rh.error);
+    setPredictionHistory(rh.data || []);
+    setAssignmentHistory((rh.data || []).filter(function(row) { return isPromotionTarget(row) && row.mission_date < today; }));
     if (missionRow) {
       var r2 = await supabase.from("promotion_mission_assignments").select("*").eq("member_id", memberId).eq("mission_id", missionRow.id).maybeSingle();
       setMyAssignment(r2.data || null);
@@ -537,6 +542,7 @@ function MemberHome(props) {
     var historyRows = assignmentHistory.filter(function(a) { return schoolKey(a.school) === schoolKey(session.member.school); });
     return daysUntilMemberTurn(mySchoolMembers, todayPeople, historyRows, memberId);
   }
+  var predictedDate = predictionUnavailable ? null : nextPromotionDate({ member: session.member, members: members, assignments: predictionHistory, today: today });
   var myTurnDays = estimateMyTurnDays();
   var myTurnText = myAssignment?.status === ST.EXEMPTED ? "이번 미션은 면제되었어요" : isAssignee ? "오늘 내 순번이에요" : (myTurnDays == null ? "내 순번 계산 중" : "내 순번까지 약 " + myTurnDays + "일");
   var schoolKeys = {};
@@ -604,6 +610,12 @@ function MemberHome(props) {
           </div>
         </div>
       )}
+
+      {!loading && <div style={homeCard({ padding: "16px 18px" })}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: SUB, marginBottom: 7 }}>{isAssignee ? "확정된 내 미션" : "다음 홍보 예상일"}</div>
+        <div style={{ fontSize: 20, lineHeight: "28px", fontWeight: 900, color: "#08235E" }}>{isAssignee ? fmtDate(mission.mission_date) : predictedDate ? fmtDate(predictedDate) : "예상일을 확인하지 못했어요"}</div>
+        {!isAssignee && <div style={{ marginTop: 6, fontSize: 12, lineHeight: "18px", color: SUB }}>{predictedDate ? "학교별 배정 이력 기준 예상일이며, 실제 미션 배정에 따라 달라질 수 있어요." : "잠시 후 새로고침해서 확인해 주세요."}</div>}
+      </div>}
 
       {mission && isAssignee && (
         <>

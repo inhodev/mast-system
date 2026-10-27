@@ -19,6 +19,25 @@ export function promotionIntervalDays(school) {
 export function allowsExistingPostProof(school) {
   return promotionSchoolKey(school) === '연세대학교(미래)'
 }
+export function nextPromotionDate({ member, members, assignments, today }) {
+  if (!member?.id || !member.school || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return null
+  const roster = members.filter(row => (row.status || 'active') === 'active' && promotionSchoolKey(row.school) === promotionSchoolKey(member.school))
+    .slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ko') ||
+      Number(String(a.gi || '').replace(/\D/g, '') || 999) - Number(String(b.gi || '').replace(/\D/g, '') || 999) || String(a.id).localeCompare(String(b.id)))
+  const memberIndex = roster.findIndex(row => row.id === member.id)
+  if (memberIndex < 0) return null
+  const history = schoolRotationHistory(assignments.filter(row => row.mission_date <= today), member.school)
+  const last = history[0]
+  if (history.some(row => row.mission_date === today && row.member_id === member.id)) return today
+  const interval = promotionIntervalDays(member.school)
+  const lastIndex = last ? roster.findIndex(row => row.id === last.member_id) : -1
+  const nextIndex = (lastIndex + 1) % roster.length
+  const position = (memberIndex - nextIndex + roster.length) % roster.length
+  const day = Date.parse(today + 'T00:00:00Z')
+  const earliest = last ? Date.parse(last.mission_date + 'T00:00:00Z') + interval * 86400000 : day + 86400000
+  const date = Math.max(day + 86400000, earliest) + position * interval * 86400000
+  return Number.isFinite(date) ? new Date(date).toISOString().slice(0, 10) : null
+}
 export function promotionCopyForSchool(body, school) {
   const text = String(body ?? '')
   if (!normalizeSchool(school).startsWith('한국외국어대학교') || text.includes(HUFS_REQUIRED_COPY)) return text
