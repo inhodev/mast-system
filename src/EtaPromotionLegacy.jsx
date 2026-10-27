@@ -1512,6 +1512,7 @@ function AdminMission(props) {
   var _prevAssignmentIds = useState(new Set()), prevAssignmentIds = _prevAssignmentIds[0], setPrevAssignmentIds = _prevAssignmentIds[1];
   var _assignmentHistory = useState([]), assignmentHistory = _assignmentHistory[0], setAssignmentHistory = _assignmentHistory[1];
   var _rotationHint = useState(""), rotationHint = _rotationHint[0], setRotationHint = _rotationHint[1];
+  var _rotationReady = useState(false), rotationReady = _rotationReady[0], setRotationReady = _rotationReady[1];
   var _autoPickApplied = useState(false), autoPickApplied = _autoPickApplied[0], setAutoPickApplied = _autoPickApplied[1];
   var _busy = useState(false), busy = _busy[0], setBusy = _busy[1];
   var _msg = useState(""), msg = _msg[0], setMsg = _msg[1];
@@ -1571,6 +1572,7 @@ function AdminMission(props) {
   }
 
   function applyRotationPick() {
+    if (!rotationReady) { setMsg("배정 이력을 불러오는 중입니다. 잠시 후 다시 시도해 주세요."); return; }
     if (!members.length) { setMsg("선택할 회원이 없습니다."); return; }
     var result = buildAutoSchoolPick();
     setSelected(new Set(result.ids));
@@ -1589,7 +1591,10 @@ function AdminMission(props) {
   }
 
   var load = useCallback(async function() {
+    setRotationReady(false);
+    try {
     var r1 = await supabase.from("promotion_missions").select("*").eq("mission_date", today).maybeSingle();
+    if (r1.error) throw r1.error;
     if (r1.data) {
       setMission(r1.data);
       setTitle(r1.data.title || "");
@@ -1599,6 +1604,7 @@ function AdminMission(props) {
       setDeadlineDate(r1.data.due_at ? new Date(r1.data.due_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" }) : addDaysKST(today, 1));
       setDeadline(r1.data.due_at ? inputTimeFromIsoKST(r1.data.due_at) : "02:00");
       var ar = await supabase.from("promotion_mission_assignments").select("member_id").eq("mission_id", r1.data.id);
+      if (ar.error) throw ar.error;
       setSelected(new Set((ar.data || []).map(function(a) { return a.member_id; })));
       setAutoPickApplied(true);
       if (r1.data.mission_image_url) setImgPreview(r1.data.mission_image_url);
@@ -1606,10 +1612,12 @@ function AdminMission(props) {
       setMission(null); setTitle(""); setBody(""); setPostTitle(""); setPostBody(""); setDeadlineDate(addDaysKST(today, 1)); setDeadline("02:00"); setSelected(new Set()); setImgPreview(null); setAutoPickApplied(false);
     }
     var r2 = await supabase.from("members").select(LEGACY_MEMBER_FIELDS).eq("status", "active");
+    if (r2.error) throw r2.error;
     var memberRows = sortMembersForRotation(r2.data || []);
     setMembers(memberRows);
     var r3 = await supabase.from("promotion_missions").select("*").lt("mission_date", today).order("mission_date", { ascending: false }).limit(10);
     var historyRes = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").lt("mission_date", today).order("mission_date", { ascending: false });
+    if (historyRes.error) throw historyRes.error;
     setAssignmentHistory((historyRes.data || []).filter(isPromotionTarget));
     if (r3.data && r3.data.length && memberRows.length) {
       var prev = await supabase.from("promotion_mission_assignments").select("member_id").eq("mission_id", r3.data[0].id);
@@ -1625,17 +1633,19 @@ function AdminMission(props) {
       setPrevAssignmentIds(new Set());
       setRotationHint("");
     }
+    setRotationReady(true);
+    } catch (error) { setMsg("배정 정보를 불러오지 못했습니다. 새로고침해 주세요."); }
   }, [today]);
 
   useEffect(function() { load(); }, [load]);
 
   useEffect(function() {
-    if (mission || autoPickApplied || !members.length) return;
+    if (!rotationReady || mission || autoPickApplied || !members.length) return;
     var result = buildAutoSchoolPick();
     setSelected(new Set(result.ids));
     setAutoPickApplied(true);
     setRotationHint("학교별 자동 추천: " + result.ids.length + "명" + (result.skipped.length ? " · 제외 " + result.skipped.length + "개 학교" : ""));
-  }, [mission, autoPickApplied, members, assignmentHistory]);
+  }, [rotationReady, mission, autoPickApplied, members, assignmentHistory]);
 
   var filtered = query.trim() ? members.filter(function(m) { return m.name.includes(query) || m.school.includes(query) || m.gi.includes(query); }) : members;
   var selectedMembers = members.filter(function(m) { return selected.has(m.id); });
@@ -1773,6 +1783,7 @@ function AdminMission(props) {
   }
 
   async function save() {
+    if (!rotationReady) { setMsg("배정 정보를 불러온 후 저장해 주세요."); return; }
     if (!title.trim() || !postTitle.trim() || selected.size === 0) { setMsg("미션명, 게시글 제목, 담당자를 입력해 주세요."); return; }
     setBusy(true); setMsg("");
     try {
@@ -1926,7 +1937,7 @@ function AdminMission(props) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-                <button style={btnSmall({ background: "#E8F0FE", color: BLUE, border: "1px solid #C8D8F6", borderRadius: 10 })} onClick={applyRotationPick}>학교별 자동 선택</button>
+                <button style={btnSmall({ background: "#E8F0FE", color: BLUE, border: "1px solid #C8D8F6", borderRadius: 10 })} disabled={!rotationReady} onClick={applyRotationPick}>학교별 자동 선택</button>
                 <button style={btnSmall({ background: missingCandidateCount ? "#FFF7E8" : "#F8FAFF", color: missingCandidateCount ? "#C65A00" : SUB, border: "1px solid " + (missingCandidateCount ? "#F6D8A8" : "#DDE4F0"), borderRadius: 10 })} onClick={function() { setMissingOpen(true); }}>누락 확인{missingCandidateCount ? " " + missingCandidateCount : ""}</button>
                 <button style={btnSmall({ background: "#F8FAFF", border: "1px solid #DDE4F0", borderRadius: 10 })} onClick={function() { setSelected(new Set(members.map(function(m) { return m.id; }))); }}>전체 선택</button>
                 <button style={btnSmall({ background: "#F8FAFF", border: "1px solid #DDE4F0", borderRadius: 10 })} onClick={function() { setSelected(new Set()); }}>전체 해제</button>
