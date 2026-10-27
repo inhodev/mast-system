@@ -13,8 +13,8 @@ export function isSchoolRotationDue(school, rows, date) {
   return (Date.parse(date + 'T00:00:00+09:00') - Date.parse(last.mission_date + 'T00:00:00+09:00')) / 86400000 >= promotionIntervalDays(school)
 }
 export const HUFS_REQUIRED_COPY = '본 단체는 한국외국어대학교 경영전략학회 MAST와는 무관합니다.'
-export function promotionIntervalDays(school) {
-  return promotionSchoolKey(school) === '연세대학교(미래)' ? 14 : 3
+export function promotionIntervalDays() {
+  return 3
 }
 export function allowsExistingPostProof(school) {
   return promotionSchoolKey(school) === '연세대학교(미래)'

@@ -1948,7 +1948,7 @@ function AdminMission(props) {
                 <div style={{ border: "1px solid #E5EAF2", background: "#F8FAFF", borderRadius: 12, padding: 12 }}>
                   <div style={{ fontSize: 13, color: "#071C59", fontWeight: 900, marginBottom: 6 }}>학교별 자동 배정 규칙</div>
                   <div style={{ fontSize: 12, color: "#42506A", fontWeight: 700, lineHeight: 1.65 }}>
-                    학교별 마지막 배정일로부터 기본 3일, 연세대학교 미래캠퍼스는 14일이 지난 학교만 자동 선정합니다. 선정되는 학교 안에서는 부원 수와 관계없이 가나다순 다음 순번을 배정합니다.
+                    모든 학교는 마지막 배정일로부터 3일이 지나면 자동 선정합니다. 연세대학교 미래캠퍼스도 동일하게 적용됩니다. 선정되는 학교 안에서는 부원 수와 관계없이 가나다순 다음 순번을 배정합니다.
                   </div>
                 </div>
               </div>

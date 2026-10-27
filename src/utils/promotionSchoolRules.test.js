@@ -10,13 +10,13 @@ test('personal prediction works without a mission, uses rotation and never predi
   assert.equal(nextPromotionDate({ ...args, assignments: [], member: members[0] }), '2026-10-28')
   assert.equal(nextPromotionDate({ ...args, members: [], member: members[0] }), null)
 })
-test('prediction shares Mirae spellings and fourteen-day history, ignores exemptions and respects today assignment', () => {
+test('prediction shares Mirae spellings and three-day history, ignores exemptions and respects today assignment', () => {
   const members = [{ id: 'a', name: '가', school: '연세대학교(미래)' }, { id: 'b', name: '나', school: '연세대학교 미래캠퍼스' }]
   const assignments = [{ member_id: 'a', school: '연세대학교 미래', mission_date: '2026-10-23', status: 'approved' }, { member_id: 'b', school: members[1].school, mission_date: '2026-10-26', status: 'exempted' }]
-  assert.equal(nextPromotionDate({ member: members[1], members, assignments, today: '2026-10-27' }), '2026-11-06')
+  assert.equal(nextPromotionDate({ member: members[1], members, assignments, today: '2026-10-27' }), '2026-10-28')
   assignments.push({ member_id: 'b', school: members[1].school, mission_date: '2026-10-27', status: 'pending' })
   assert.equal(nextPromotionDate({ member: members[1], members, assignments, today: '2026-10-27' }), '2026-10-27')
-  assert.equal(nextPromotionDate({ member: members[0], members, assignments, today: '2026-10-27' }), '2026-11-10')
+  assert.equal(nextPromotionDate({ member: members[0], members, assignments, today: '2026-10-27' }), '2026-10-30')
 })
 import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof, HUFS_REQUIRED_COPY } from './promotionSchoolRules.js'
 test('only Mirae members may certify an existing post instead of publishing a new one', () => {
@@ -29,13 +29,13 @@ test('Mirae spelling variants share one rotation history without merging Seoul',
   assert.notEqual(promotionSchoolKey(variants[0]), promotionSchoolKey('연세대학교'))
   const rows = [{ school: variants[2], mission_date: '2026-10-23', status: 'approved' }, { school: variants[0], mission_date: '2026-10-26', status: 'exempted' }]
   assert.deepEqual(schoolRotationHistory(rows, variants[1]), [rows[0]])
-  assert.equal(isSchoolRotationDue(variants[0], rows, '2026-10-26'), false)
-  assert.equal(isSchoolRotationDue(variants[1], rows, '2026-11-05'), false)
-  assert.equal(isSchoolRotationDue(variants[2], rows, '2026-11-06'), true)
-  assert.equal(promotionIntervalDays(variants[3]), 14)
+  assert.equal(isSchoolRotationDue(variants[0], rows, '2026-10-25'), false)
+  assert.equal(isSchoolRotationDue(variants[1], rows, '2026-10-26'), true)
+  assert.equal(isSchoolRotationDue(variants[2], rows, '2026-10-27'), true)
+  assert.equal(promotionIntervalDays(variants[3]), 3)
 })
-test('Mirae campus waits fourteen days; other schools keep three', () => {
-  for (const school of ['연세대학교 미래캠퍼스', '연세대학교(미래)', '연세대학교 미래']) assert.equal(promotionIntervalDays(school), 14)
+test('all schools including Mirae use a three-day rotation', () => {
+  for (const school of ['연세대학교 미래캠퍼스', '연세대학교(미래)', '연세대학교 미래']) assert.equal(promotionIntervalDays(school), 3)
   for (const school of ['연세대학교', '한국외국어대학교', '한국외국어대학교(글로벌)', '인하대학교']) assert.equal(promotionIntervalDays(school), 3)
 })
 test('HUFS copy appends mandatory notice once and leaves other schools unchanged', () => {
