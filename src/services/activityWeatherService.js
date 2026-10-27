@@ -1,3 +1,4 @@
+import { promotionMissItems } from '../utils/promotionAssignmentPolicy.js'
 import { LEGACY_MEMBER_FIELDS } from './baseService'
 import { requireSupabase, TABLES } from './baseService'
 import { ACTIVITY_WEATHER_PRESETS, calculateActivityWeather, calculateWeatherFromEvents, WEATHER_BASE_SCORE, OFFLINE_EVENT_TYPES, OFFLINE_TARGET_POINTS } from '../utils/activityWeather'
@@ -7,22 +8,6 @@ import { findAttendanceMember } from './attendanceService'
 //  - 출석 점수(attendance, 구버전 ot_late 등): 출석 기록에서 계산
 //  - 에타 미참여(eta_miss): 마감 지난 홍보 미션 미제출에서 계산
 const DERIVED_EVENT_TYPES = ['attendance', 'attendance_late', 'ot_late', 'ot_late_30', 'eta_miss', 'contest_join']
-const SUBMITTED_PROMO = ['submitted', 'approved', 'late']
-
-// 마감이 지난 홍보 미션 중 미제출 건 → '에타 미참여 -2'
-function promotionMissItems(assignments, missionById, now) {
-  const items = []
-  for (const a of assignments ?? []) {
-    const m = missionById && missionById.get(String(a.mission_id))
-    if (!m) continue
-    const due = m.due_at ? new Date(m.due_at).getTime() : null
-    if (due == null || now < due) continue // 아직 마감 전
-    if (SUBMITTED_PROMO.includes(String(a.status ?? '').toLowerCase())) continue // 제출/승인/지각완료 제외
-    items.push({ id: `promo-${a.id}`, event_type: 'eta_miss', points: -2, metadata: { reason: `${m.title || '에타 미션'} 미참여`, auto: true } })
-  }
-  return items
-}
-
 function norm(v) { return String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ') }
 function genNum(v) { return String(v ?? '').replace(/[^0-9]/g, '') }
 

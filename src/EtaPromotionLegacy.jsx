@@ -1,4 +1,5 @@
-import { promotionIntervalDays, promotionCopyForSchool } from "./utils/promotionSchoolRules.js";
+import { isPromotionTarget, promotionSubmissionError } from "./utils/promotionAssignmentPolicy.js";
+import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue } from "./utils/promotionSchoolRules.js";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LEGACY_MEMBER_FIELDS } from "./services/baseService.js";
 import SecureProofImage from "./components/SecureProofImage.jsx";
@@ -53,7 +54,7 @@ function sortMembersForRotation(list) {
     return String(a.name || "").localeCompare(String(b.name || ""), "ko");
   });
 }
-function schoolKey(school) { return normalize(school); }
+function schoolKey(school) { return promotionSchoolKey(school); }
 function sortMembersByKoreanName(list) {
   return list.slice().sort(function(a, b) {
     var n = String(a.name || "").localeCompare(String(b.name || ""), "ko");
@@ -463,8 +464,8 @@ function MemberHome(props) {
     setMyAssignment(null); setMyProof(null); setAssignees([]);
     var rm = await supabase.from("members").select("id,name,gi,school,status");
     setMembers((rm.data || []).filter(function(m) { return (m.status || "active") === "active"; }));
-    var rh = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date").lt("mission_date", today).order("mission_date", { ascending: false });
-    setAssignmentHistory(rh.data || []);
+    var rh = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").lt("mission_date", today).order("mission_date", { ascending: false });
+    setAssignmentHistory((rh.data || []).filter(isPromotionTarget));
     if (missionRow) {
       var r2 = await supabase.from("promotion_mission_assignments").select("*").eq("member_id", memberId).eq("mission_id", missionRow.id).maybeSingle();
       setMyAssignment(r2.data || null);
@@ -473,7 +474,7 @@ function MemberHome(props) {
         setMyProof(rp.data || null);
       }
       var ra = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, status").eq("mission_id", missionRow.id);
-      setAssignees(ra.data || []);
+      setAssignees((ra.data || []).filter(isPromotionTarget));
     }
     var r3 = await supabase.from("promotion_assignment_status_view").select("*").eq("member_id", memberId).order("mission_date", { ascending: false }).limit(5);
     setRecords(r3.data || []);
@@ -483,7 +484,7 @@ function MemberHome(props) {
   useEffect(function() { load(); }, [load]);
 
   var previewAssignee = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("previewAssignee") === "1";
-  var isAssignee = previewAssignee || !!myAssignment;
+  var isAssignee = previewAssignee || isPromotionTarget(myAssignment);
   var myStatus = myAssignment ? myAssignment.status : null;
   var submittedStatuses = [ST.SUBMITTED, ST.APPROVED, ST.LATE];
   var submittedCount = assignees.filter(function(a) { return submittedStatuses.indexOf(a.status) !== -1; }).length;
@@ -537,7 +538,7 @@ function MemberHome(props) {
     return daysUntilMemberTurn(mySchoolMembers, todayPeople, historyRows, memberId);
   }
   var myTurnDays = estimateMyTurnDays();
-  var myTurnText = isAssignee ? "오늘 내 순번이에요" : (myTurnDays == null ? "내 순번 계산 중" : "내 순번까지 약 " + myTurnDays + "일");
+  var myTurnText = myAssignment?.status === ST.EXEMPTED ? "이번 미션은 면제되었어요" : isAssignee ? "오늘 내 순번이에요" : (myTurnDays == null ? "내 순번 계산 중" : "내 순번까지 약 " + myTurnDays + "일");
   var schoolKeys = {};
   assignees.forEach(function(a) { schoolKeys[schoolKey(a.school)] = a.school; });
   if (session.member.school) schoolKeys[schoolKey(session.member.school)] = session.member.school;
@@ -754,7 +755,7 @@ function MemberCert(props) {
 
   useEffect(function() { load(); }, [load]);
 
-  var isAssignee = !!myAssignment;
+  var isAssignee = isPromotionTarget(myAssignment);
 
   async function copyPostText(label, text) {
     var ok = await copyTextToClipboard(text);
@@ -795,6 +796,17 @@ function MemberCert(props) {
     <div style={{ padding: "0 16px" }}>
       <PageHeader title="인증하기" />
       <CenteredMsg msg="오늘 등록된 홍보 미션이 없습니다." />
+    </div>
+  );
+
+  if (myAssignment?.status === ST.EXEMPTED) return (
+    <div style={{ padding: "0 16px" }}>
+      <PageHeader title="홍보 미션 면제" />
+      <div style={card()}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>이번 미션은 면제되었습니다</div>
+        <p style={{ color: SUB }}>홍보 대상에서 제외되어 사진을 제출하지 않아도 됩니다. 미제출로 집계되거나 감점되지 않습니다.</p>
+        <button style={btnPrimary()} onClick={function() { props.onTab("home"); }}>홈으로 돌아가기</button>
+      </div>
     </div>
   );
 
@@ -883,7 +895,7 @@ function MemberCert(props) {
         </div>
       ) : (
         <UploadForm member={session.member} assignment={myAssignment} mission={mission}
-          existingProof={myProof} onDone={function() { setDone(true); }} />
+          existingProof={myProof} onAssignmentChanged={function(next) { setMyAssignment(Object.assign({}, myAssignment, next)); }} onDone={function() { setDone(true); }} />
       )}
 
       <div style={card({ marginTop: 16, background: "rgba(255,255,255,0.7)" })}>
@@ -923,8 +935,16 @@ function UploadForm(props) {
     if (file && file.size > 10 * 1024 * 1024) { setErr("사진은 10MB 이하로 선택해 주세요."); return; }
     setBusy(true); setErr("");
     try {
+      var latest = await supabase.from("promotion_mission_assignments").select("status,late_until_at").eq("id", assignment.id).maybeSingle();
+      if (latest.error) throw latest.error;
+      if (!latest.data) throw new Error("배정 정보를 찾지 못했습니다.");
+      if (latest.data.status === ST.EXEMPTED) {
+        props.onAssignmentChanged(latest.data);
+        return;
+      }
+      if ([ST.APPROVED, ST.LATE, ST.MISSED].includes(latest.data.status)) throw new Error("본인 인증 제출 상태가 변경되었습니다.");
       var nowIso = new Date().toISOString();
-      if (assignment.late_until_at && new Date(nowIso) > new Date(assignment.late_until_at)) {
+      if (latest.data.late_until_at && new Date(nowIso) > new Date(latest.data.late_until_at)) {
         setErr("지각 제출 가능 시간이 지났습니다. 관리자에게 문의해 주세요.");
         setBusy(false);
         return;
@@ -954,8 +974,7 @@ function UploadForm(props) {
       }
       props.onDone();
     } catch(e) {
-      const detail = String(e?.message || e?.error || "");
-      setErr(/size|large|exceed/i.test(detail) ? "사진 용량이 너무 큽니다. 10MB 이하로 선택해 주세요." : /mime|type/i.test(detail) ? "지원하지 않는 사진 형식입니다. JPG 또는 PNG로 선택해 주세요." : /jwt|token|session|unauthorized/i.test(detail) ? "로그인 연결을 확인하지 못했어요. 사진은 유지되니 잠시 후 다시 제출해 주세요." : "인증을 저장하지 못했어요. 선택한 사진은 유지됩니다. 다시 제출해 주세요.");
+      setErr(promotionSubmissionError(e));
       console.error("promotion proof submission failed", e);
     }
     finally { setBusy(false); }
@@ -1535,10 +1554,10 @@ function AdminMission(props) {
       return String(a.school || "").localeCompare(String(b.school || ""), "ko");
     }).forEach(function(group) {
       var sorted = sortMembersByKoreanName(group.members);
-      var history = assignmentHistory.filter(function(a) { return schoolKey(a.school) === schoolKey(group.school); });
+      var history = schoolRotationHistory(assignmentHistory, group.school);
       var last = history[0] || null;
       var pick = null;
-      if (last && daysBetweenKST(last.mission_date, today) < promotionIntervalDays(group.school)) {
+      if (!isSchoolRotationDue(group.school, history, today)) {
         skipped.push(group.school + " 없음(" + promotionIntervalDays(group.school) + "일 주기)");
       } else if (!last) {
         pick = sorted[0];
@@ -1590,8 +1609,8 @@ function AdminMission(props) {
     var memberRows = sortMembersForRotation(r2.data || []);
     setMembers(memberRows);
     var r3 = await supabase.from("promotion_missions").select("*").lt("mission_date", today).order("mission_date", { ascending: false }).limit(10);
-    var historyRes = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date").lt("mission_date", today).order("mission_date", { ascending: false });
-    setAssignmentHistory(historyRes.data || []);
+    var historyRes = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").lt("mission_date", today).order("mission_date", { ascending: false });
+    setAssignmentHistory((historyRes.data || []).filter(isPromotionTarget));
     if (r3.data && r3.data.length && memberRows.length) {
       var prev = await supabase.from("promotion_mission_assignments").select("member_id").eq("mission_id", r3.data[0].id);
       var prevRows = prev.data || [];
@@ -2203,7 +2222,7 @@ function AdminMissionHistory() {
                       <b style={{ display: "block", color: INK, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.member_name || "담당자 미확인"}</b>
                       <small style={{ color: SUB, fontWeight: 800 }}>{row.gi || ""}</small>
                     </div>
-                    <span style={{ color: done ? "#00A879" : "#E04848", fontSize: 11, fontWeight: 900 }}>{done ? "제출" : "미제출"}</span>
+                    <span style={{ color: stColor(row.status), fontSize: 11, fontWeight: 900 }}>{row.status === ST.EXEMPTED ? "면제" : done ? "제출" : "미제출"}</span>
                   </div>
                 );
               })}

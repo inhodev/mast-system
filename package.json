@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/utils/passwordReset.test.js src/utils/firstLoginIdentity.test.js src/utils/promotionSchoolRules.test.js",
+    "test": "node --test src/utils/passwordReset.test.js src/utils/firstLoginIdentity.test.js src/utils/promotionSchoolRules.test.js src/utils/promotionAssignmentPolicy.test.js",
     "preview": "vite preview",
     "lint": "eslint .",
     "doctor": "npx react-doctor@latest"

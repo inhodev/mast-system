@@ -1,3 +1,4 @@
+import { isPromotionTarget } from '../utils/promotionAssignmentPolicy.js'
 import { requireSupabase, throwIfError, LEGACY_MEMBER_FIELDS } from './baseService'
 
 const PROOF_BUCKET = 'proofs'
@@ -67,7 +68,7 @@ export async function getPromotionDashboard(currentMember) {
       .from('promotion_assignment_status_view')
       .select('member_id,member_name,gi,school,status,submitted_at')
       .eq('mission_id', mission.id)
-    if (!assigneeResult.error) assignees = assigneeResult.data || []
+    if (!assigneeResult.error) assignees = (assigneeResult.data || []).filter(isPromotionTarget)
   }
 
   const recordsResult = await client

@@ -1,3 +1,4 @@
+import { isPromotionTarget } from '../utils/promotionAssignmentPolicy.js'
 import { useEffect, useRef } from 'react'
 import { Bell, CalendarDays, ChevronRight, CloudSun, FileText, Megaphone, Trophy, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -151,7 +152,7 @@ function getPromotionTodo(promotion, warning) {
   const assignment = promotion.assignment
   const missionTitle = promotion.mission.title || '오늘 홍보 미션'
   // 홍보 대상자(배정된 회원)일 때만 "오늘 할 일"에 노출
-  if (!assignment) return null
+  if (!isPromotionTarget(assignment)) return null
   if (isPromotionSubmitted(assignment.status)) {
     return {
       key: 'promotion-done',
