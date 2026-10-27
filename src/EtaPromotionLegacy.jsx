@@ -1,5 +1,5 @@
 import { isPromotionTarget, promotionSubmissionError } from "./utils/promotionAssignmentPolicy.js";
-import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue } from "./utils/promotionSchoolRules.js";
+import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof } from "./utils/promotionSchoolRules.js";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LEGACY_MEMBER_FIELDS } from "./services/baseService.js";
 import SecureProofImage from "./components/SecureProofImage.jsx";
@@ -828,8 +828,10 @@ function MemberCert(props) {
       <div style={card({ marginBottom: 16, border: "1px solid #BBD6FF", background: "linear-gradient(135deg,#EFF5FF,#F3F8FF)" })}>
         <div style={{ fontSize: 13.5, fontWeight: 900, color: "#0860EC", marginBottom: 7 }}>📢 에브리타임 홍보 관련 안내</div>
         <div style={{ fontSize: 12.5, lineHeight: "19px", color: "#42506A", fontWeight: 700, wordBreak: "keep-all" }}>
-          각 학교 에브리타임 게시판 기준으로, 우리 동아리 게시글이 <b style={{ color: "#0860EC" }}>최신 상단 5개 안</b>에 포함되어 있으면 추가 업로드를 하지 않으셔도 됩니다.<br />
-          캡처본 업로드 시 <b style={{ color: "#0860EC" }}>해당 게시판의 최신 글 목록이 보이도록</b> 캡처해 보내주시면 홍보를 진행한 것으로 인정하여 카운팅합니다. 감사합니다!
+          {allowsExistingPostProof(session.member.school) ? <>
+            연세대학교 미래캠퍼스는 MAST 홍보글이 <b style={{ color: "#0860EC" }}>게시판 최신 상단 5개 안</b>에 있으면 새 글을 작성하지 않아도 됩니다.<br />
+            대신 <b style={{ color: "#0860EC" }}>기존 글과 최신 글 목록이 보이는 캡처를 반드시 제출</b>해 주세요. 사진 확인 후 정상 홍보 참여로 인정됩니다.
+          </> : <>학교 에브리타임 동아리/학회 게시판에 홍보글을 작성하고, 게시한 글이 보이는 캡처를 제출해 주세요.</>}
         </div>
       </div>
 
@@ -916,7 +918,8 @@ function UploadForm(props) {
   var _preview = useState(null), preview = _preview[0], setPreview = _preview[1];
   var _busy = useState(false), busy = _busy[0], setBusy = _busy[1];
   var _err = useState(""), err = _err[0], setErr = _err[1];
-  var _skip = useState(false), skipped = _skip[0], setSkipped = _skip[1];
+  var canUseExistingPost = allowsExistingPostProof(member.school);
+  var _skip = useState(canUseExistingPost && /기존 게시글 캡처 인증|건너뛰기/.test(assignment.status_reason || "")), skipped = _skip[0], setSkipped = _skip[1];
   var fileRef = useRef(null);
 
   function pick(e) {
@@ -965,7 +968,7 @@ function UploadForm(props) {
       var saved = await supabase.rpc("mast_submit_promotion_proof", {
         p_assignment_id: assignment.id,
         p_file_path: row.proof_file_path || existingProof?.proof_file_path,
-        p_skipped: skipped,
+        p_skipped: canUseExistingPost && skipped,
       });
       if (saved.error) throw saved.error;
       if (!saved.data?.ok) throw new Error("인증 저장을 확인하지 못했습니다.");
@@ -991,7 +994,7 @@ function UploadForm(props) {
         </div>
       )}
 
-      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0860EC", background: "#EAF2FF", borderRadius: 12, padding: "10px 12px", marginBottom: 12, lineHeight: "18px", wordBreak: "keep-all", textAlign: "center" }}>우리 동아리 게시글이 게시판 최신 상단 5개 안에 있으면 도배 방지를 위해 추가 업로드 없이 건너뛰기 해주세요. 캡처는 최신 글 목록이 보이도록 올려주세요.</div>
+      {canUseExistingPost && <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0860EC", background: "#EAF2FF", borderRadius: 12, padding: "10px 12px", marginBottom: 12, lineHeight: "18px", wordBreak: "keep-all", textAlign: "center" }}>연세대학교 미래캠퍼스 전용: 최근 상단 5개 안에 MAST 홍보글이 있으면 새 글 작성 대신 기존 글과 최신 글 목록이 보이는 캡처를 제출해 주세요. 인증 제출은 필수입니다.</div>}
       {(preview || existingImg) ? (
         <div style={{ position: "relative", marginBottom: 12 }}>
           <SecureProofImage src={preview || existingImg} path={preview ? null : existingProof?.proof_file_path} alt="미리보기" style={{ width: "100%", maxHeight: 300, objectFit: "contain", borderRadius: 14, border: "1px solid #E5EAF2" }} />
@@ -1009,13 +1012,14 @@ function UploadForm(props) {
       )}
       <input ref={fileRef} type="file" accept="image/*" onChange={pick} style={{ display: "none" }} />
       {err && <div style={{ fontSize: 13, color: "#C0392B", marginBottom: 10, fontWeight: 600 }}>{err}</div>}
-      <button
+      {canUseExistingPost && <button
+        aria-pressed={skipped}
         onClick={function() { setSkipped(!skipped); }}
         style={{ width: "100%", marginBottom: 10, border: skipped ? "1px solid #0869F4" : "1px solid #D5DEEC", background: skipped ? "#EAF2FF" : "#fff", color: skipped ? "#0869F4" : "#5A6478", borderRadius: 14, padding: "12px 16px", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
       >
         <span style={{ width: 18, height: 18, borderRadius: 5, border: skipped ? "none" : "1.5px solid #C2CCDC", background: skipped ? "#0869F4" : "#fff", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, lineHeight: 0 }}>{skipped ? "✓" : ""}</span>
-        건너뛰기 (이미 관련 게시물이 있어요)
-      </button>
+        기존 게시글로 인증 (새 글 작성만 면제)
+      </button>}
       <button style={btnPrimary({ opacity: busy ? 0.7 : 1 })} disabled={busy} onClick={submit}>
         {busy ? "업로드 중..." : existingProof ? "사진 수정 완료" : "인증 제출"}
       </button>
@@ -2901,7 +2905,7 @@ function AdminCerts() {
         <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 5 : 10 }}>
           {visibleProofs.map(function(proof) {
             var status = proof.status;
-            var isSkip = String(proof.status_reason || "").indexOf("건너뛰기") !== -1;
+            var isSkip = /기존 게시글 캡처 인증|건너뛰기/.test(proof.status_reason || "");
             if (isMobile) {
               return (
                 <div key={proof.id} style={{ background: "#fff", borderRadius: 12, padding: "7px 8px", boxShadow: "0 4px 12px rgba(33,64,120,0.05)", border: "1px solid #EDF2FA" }}>
@@ -2911,10 +2915,10 @@ function AdminCerts() {
                         <span style={{ fontSize: 13, fontWeight: 900, color: INK, whiteSpace: "nowrap" }}>{proof.member_name}</span>
                         <span style={{ fontSize: 11, fontWeight: 800, color: SUB, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>- {proof.school}</span>
                       </div>
-                      <div style={{ fontSize: 10, color: SUB, fontWeight: 800, marginTop: 1 }}>{proof.gi}{proof.submitted_at ? " · " + fmtTime(proof.submitted_at) : ""}{isSkip ? " · 건너뛰기" : ""}</div>
+                      <div style={{ fontSize: 10, color: SUB, fontWeight: 800, marginTop: 1 }}>{proof.gi}{proof.submitted_at ? " · " + fmtTime(proof.submitted_at) : ""}{isSkip ? " · 기존 글 인증" : ""}</div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      {isSkip && <span style={{ fontSize: 10, fontWeight: 900, color: "#0869F4", background: "#EAF2FF", padding: "3px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>건너뛰기</span>}
+                      {isSkip && <span style={{ fontSize: 10, fontWeight: 900, color: "#0869F4", background: "#EAF2FF", padding: "3px 7px", borderRadius: 999, whiteSpace: "nowrap" }}>기존 글 인증</span>}
                       <button onClick={function() { openStatusEdit(proof); }} style={{ border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 10, fontWeight: 900, color: stColor(status), background: stBg(status), padding: "4px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>{stLabel(status)}</button>
                     </div>
                   </div>
@@ -2937,7 +2941,7 @@ function AdminCerts() {
                   <div style={{ fontSize: 12, color: SUB }}>{proof.gi + " · " + proof.school}</div>
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 700, color: stColor(status), background: stBg(status), padding: "5px 14px", borderRadius: 999 }}>{stLabel(status)}</span>
-                {isSkip && <span style={{ fontSize: 12, fontWeight: 800, color: "#0869F4", background: "#EAF2FF", padding: "5px 12px", borderRadius: 999 }}>건너뛰기</span>}
+                {isSkip && <span style={{ fontSize: 12, fontWeight: 800, color: "#0869F4", background: "#EAF2FF", padding: "5px 12px", borderRadius: 999 }}>기존 글 인증</span>}
                 {proof.proof && proof.proof.proof_image_url && (
                   <button onClick={function() { setZoom(proof); }} style={btnSmall({ background: "#F0F4FB", color: BLUE })}>캡처 보기</button>
                 )}

@@ -16,6 +16,9 @@ export const HUFS_REQUIRED_COPY = '본 단체는 한국외국어대학교 경영
 export function promotionIntervalDays(school) {
   return promotionSchoolKey(school) === '연세대학교(미래)' ? 14 : 3
 }
+export function allowsExistingPostProof(school) {
+  return promotionSchoolKey(school) === '연세대학교(미래)'
+}
 export function promotionCopyForSchool(body, school) {
   const text = String(body ?? '')
   if (!normalizeSchool(school).startsWith('한국외국어대학교') || text.includes(HUFS_REQUIRED_COPY)) return text

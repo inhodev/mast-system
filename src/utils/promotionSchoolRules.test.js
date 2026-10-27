@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, HUFS_REQUIRED_COPY } from './promotionSchoolRules.js'
+import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof, HUFS_REQUIRED_COPY } from './promotionSchoolRules.js'
+test('only Mirae members may certify an existing post instead of publishing a new one', () => {
+  for (const school of ['연세대학교(미래)', '연세대학교 미래캠퍼스', '연세대 미래캠']) assert.equal(allowsExistingPostProof(school), true)
+  for (const school of ['연세대학교', '인하대학교', '한국외국어대학교', '', null]) assert.equal(allowsExistingPostProof(school), false)
+})
 test('Mirae spelling variants share one rotation history without merging Seoul', () => {
   const variants = ['연세대학교(미래)', '연세대학교(미래캠퍼스)', '연세대학교 미래', '연세대 미래캠']
   assert.equal(new Set(variants.map(promotionSchoolKey)).size, 1)

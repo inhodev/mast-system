@@ -16,6 +16,7 @@ export function promotionMissItems(assignments, missionById, now) {
 
 export function promotionSubmissionError(error) {
   const detail = String(error?.message || error?.error || '')
+  if (detail === '기존 게시글 인증은 연세대학교 미래캠퍼스만 가능합니다.') return detail
   if (/면제|exempted/i.test(detail)) return '면제된 미션입니다. 인증을 제출하지 않아도 됩니다.'
   if (/제출 시간|지각 제출 가능 시간/.test(detail)) return '인증 제출 시간이 지났습니다. 관리자에게 문의해 주세요.'
   if (/본인 인증 제출|본인에게 배정|배정 정보/.test(detail)) return '배정 상태가 변경되어 제출할 수 없습니다. 홈에서 현재 상태를 확인해 주세요.'

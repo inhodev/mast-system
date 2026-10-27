@@ -55,4 +55,25 @@ do $$ declare result jsonb; begin
  exception when insufficient_privilege then null;
  end;
 end $$;
+do $$ begin
+ begin
+  perform mast_submit_promotion_proof('00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001/proof.png',true);
+  raise exception 'Other school existing-post proof accepted';
+ exception when insufficient_privilege then null;
+ end;
+end $$;
+select set_config('test.role','service_role',true);
+update members set school='연세대학교(미래캠퍼스)';
+select set_config('test.role','authenticated',true);
+do $$ declare result jsonb; begin
+ begin
+  perform mast_submit_promotion_proof('00000000-0000-0000-0000-000000000002',null,true);
+  raise exception 'Existing-post proof without screenshot accepted';
+ exception when insufficient_privilege then null;
+ end;
+ result:=mast_submit_promotion_proof('00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001/proof.png',true);
+ if not (result->>'ok')::boolean or (select status from promotion_mission_assignments limit 1)<>'submitted' then raise exception 'Mirae proof did not count as a normal submission'; end if;
+ if (select status_reason from promotion_mission_assignments limit 1) is distinct from '기존 게시글 캡처 인증(연세대학교 미래캠퍼스)' then raise exception 'Missing existing-post review label'; end if;
+ if (select count(*) from promotion_proofs)<>1 then raise exception 'Existing-post screenshot not saved'; end if;
+end $$;
 rollback;
