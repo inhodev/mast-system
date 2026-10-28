@@ -1,5 +1,5 @@
 import { isPromotionTarget, promotionSubmissionError } from "./utils/promotionAssignmentPolicy.js";
-import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof, nextPromotionDate } from "./utils/promotionSchoolRules.js";
+import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof, nextPromotionDate, nextRotationMember } from "./utils/promotionSchoolRules.js";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LEGACY_MEMBER_FIELDS } from "./services/baseService.js";
 import SecureProofImage from "./components/SecureProofImage.jsx";
@@ -1679,14 +1679,7 @@ function AdminMission(props) {
     var lastSelected = todayMembers[todayMembers.length - 1];
     var next = null;
     if (schoolMembers.length && lastSelected) {
-      var idx = schoolMembers.findIndex(function(m) { return m.id === lastSelected.id; });
-      if (schoolMembers.length === 1) {
-        next = null;
-      } else if (schoolMembers.length === 2) {
-        next = idx === 0 ? schoolMembers[1] : null;
-      } else {
-        next = schoolMembers[(idx + 1) % schoolMembers.length];
-      }
+      next = nextRotationMember(schoolMembers, lastSelected.id);
     }
     return { school: school, count: schoolMembers.length, members: schoolMembers, today: todayMembers, next: next };
   }).sort(function(a, b) {

@@ -1,4 +1,8 @@
 begin;
+do $$ begin
+ if mast_canonical_school('한양대학교(에리카)') is distinct from mast_canonical_school('한양대학교 ERICA') then raise exception 'ERICA aliases split'; end if;
+ if mast_canonical_school('한양대학교')=mast_canonical_school('한양대학교 ERICA') then raise exception 'Distinct campuses merged'; end if;
+end $$;
 insert into members(id,school) values ('00000000-0000-0000-0000-000000000001','학교 A');
 insert into team_matching_members(id,mast_member_id,school) values (1,'00000000-0000-0000-0000-000000000001','학교 A');
 

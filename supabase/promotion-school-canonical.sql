@@ -1,8 +1,19 @@
 begin;
 create or replace function public.mast_canonical_school(p_school text)
 returns text language sql immutable set search_path=public,pg_temp as $$
- select case when regexp_replace(coalesce(p_school,''),'\s','','g') ~ '^연세대(학교)?.*미래'
-  then '연세대학교(미래)' else p_school end;
+ select case
+  when key ~ '^연세대(학교)?미래$' then '연세대학교(미래)'
+  when key ~ '^한양대(학교)?(erica|에리카)$' then '한양대학교 ERICA'
+  when key='고려대학교세종' then '고려대학교(세종)'
+  when key='단국대학교천안' then '단국대학교(천안)'
+  when key='홍익대학교세종' then '홍익대학교(세종)'
+  when key='강원대학교춘천' then '강원대학교(춘천)'
+  when key='상명대학교서울' then '상명대학교(서울)'
+  when key='동국대학교서울' then '동국대학교'
+  when key='서울홍익대학교' then '홍익대학교'
+  when key='한경국립대' then '한경국립대학교'
+  else trim(p_school) end
+ from (select regexp_replace(regexp_replace(lower(coalesce(p_school,'')),'[[:space:]()（）]','','g'),'캠퍼스|캠','','g') key) normalized
 $$;
 create or replace function public.mast_normalize_member_school()
 returns trigger language plpgsql set search_path=public,pg_temp as $$

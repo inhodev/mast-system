@@ -1,5 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { canonicalPromotionSchool, nextRotationMember } from './promotionSchoolRules.js'
+test('school spelling aliases merge without combining different campuses', () => {
+  for (const [a, b] of [['한양대학교(에리카)', '한양대학교 ERICA'], ['고려대학교 세종캠퍼스', '고려대학교(세종)'], ['단국대학교(천안캠퍼스)', '단국대학교(천안)'], ['홍익대학교 세종캠퍼스', '홍익대학교(세종)'], ['한경국립대', '한경국립대학교']]) {
+    assert.equal(canonicalPromotionSchool(a), canonicalPromotionSchool(b))
+    assert.equal(promotionSchoolKey(a), promotionSchoolKey(b))
+  }
+  for (const [a, b] of [['한양대학교', '한양대학교 ERICA'], ['고려대학교', '고려대학교(세종)'], ['단국대학교', '단국대학교(천안)'], ['홍익대학교', '홍익대학교(세종)']]) assert.notEqual(promotionSchoolKey(a), promotionSchoolKey(b))
+})
+test('two-person school rotates back to the first person, one-person school has no other next member', () => {
+  const members = [{ id: 'a' }, { id: 'b' }]
+  assert.equal(nextRotationMember(members, 'b'), members[0])
+  assert.equal(nextRotationMember(members, 'a'), members[1])
+  assert.equal(nextRotationMember([members[0]], 'a'), null)
+})
 import { nextPromotionDate } from './promotionSchoolRules.js'
 test('personal prediction works without a mission, uses rotation and never predicts an unassigned today', () => {
   const members = [{ id: 'a', name: '가', school: '인하대학교' }, { id: 'b', name: '나', school: '인하대학교' }]

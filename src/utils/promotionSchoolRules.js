@@ -1,7 +1,22 @@
 const normalizeSchool = (school) => String(school ?? '').replace(/\s/g, '').toLowerCase()
+export function canonicalPromotionSchool(school) {
+  const key = normalizeSchool(school).replace(/[()（）]/g, '').replace(/캠퍼스|캠/g, '')
+  if (/^연세대(?:학교)?미래$/.test(key)) return '연세대학교(미래)'
+  if (/^한양대(?:학교)?(?:erica|에리카)$/.test(key)) return '한양대학교 ERICA'
+  const aliases = {
+    고려대학교세종: '고려대학교(세종)', 단국대학교천안: '단국대학교(천안)',
+    홍익대학교세종: '홍익대학교(세종)', 강원대학교춘천: '강원대학교(춘천)',
+    상명대학교서울: '상명대학교(서울)', 동국대학교서울: '동국대학교',
+    서울홍익대학교: '홍익대학교', 한경국립대: '한경국립대학교',
+  }
+  return aliases[key] || String(school ?? '').trim()
+}
 export function promotionSchoolKey(school) {
-  const key = normalizeSchool(school)
-  return /^연세대(?:학교)?/.test(key) && key.includes('미래') ? '연세대학교(미래)' : key
+  return normalizeSchool(canonicalPromotionSchool(school))
+}
+export function nextRotationMember(members, memberId) {
+  const index = members.findIndex(member => member.id === memberId)
+  return members.length > 1 && index >= 0 ? members[(index + 1) % members.length] : null
 }
 export function schoolRotationHistory(rows, school) {
   return rows.filter(row => row.status !== 'exempted' && promotionSchoolKey(row.school) === promotionSchoolKey(school))
