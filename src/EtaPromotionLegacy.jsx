@@ -1373,7 +1373,7 @@ function AdminDashboard(props) {
   var secondaryDashboardSection = (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 16, marginBottom: 20 }}>
       <div style={card({ padding: 0, display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", overflow: "hidden" })}>
-        <DashMetric label="전체 학교" value={new Set(members.map(function(m) { return m.school; })).size} unit="개" icon={<NavUser />} color="#0869F4" compact={isMobile} onClick={function() { props.onTab("history"); }} />
+        <DashMetric label="전체 학교" value={new Set(members.map(function(m) { return schoolKey(m.school); })).size} unit="개" icon={<NavUser />} color="#0869F4" compact={isMobile} onClick={function() { props.onTab("history"); }} />
         <DashMetric label={mission ? "미션 수정" : "미션 등록"} value={assigneeMembers.length} unit="명" icon={<NavUser />} color="#00A879" compact={isMobile} onClick={function() { props.onTab("mission"); }} />
         <DashMetric label="제출 완료" value={approvedProofs.length} unit="명" sub={assigneeMembers.length ? Math.round(approvedProofs.length / assigneeMembers.length * 100) + "%" : "0%"} icon={<IconCheck color="#00A879" />} color="#00A879" compact={isMobile} onClick={function() { props.onTab("certs"); }} />
         <DashMetric label="미제출" value={notSubmitted.length} unit="명" sub={assigneeMembers.length ? Math.round(notSubmitted.length / assigneeMembers.length * 100) + "%" : "0%"} icon={<NavWarn />} color="#FF5A1F" compact={isMobile} onClick={function() { props.onTab("uncert"); }} />
@@ -1399,7 +1399,7 @@ function AdminDashboard(props) {
 
       <div style={{ display: "none", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr", gap: 16, marginBottom: 20 }}>
         <div style={card({ padding: 0, display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)", overflow: "hidden" })}>
-          <DashMetric label="전체 학교" value={new Set(members.map(function(m) { return m.school; })).size} unit="개" icon={<NavUser />} color="#0869F4" compact={isMobile} onClick={function() { props.onTab("history"); }} />
+          <DashMetric label="전체 학교" value={new Set(members.map(function(m) { return schoolKey(m.school); })).size} unit="개" icon={<NavUser />} color="#0869F4" compact={isMobile} onClick={function() { props.onTab("history"); }} />
           <DashMetric label={mission ? "미션 수정" : "미션 등록"} value={assigneeMembers.length} unit="명" icon={<NavUser />} color="#00A879" compact={isMobile} onClick={function() { props.onTab("mission"); }} />
           <DashMetric label="제출 완료" value={approvedProofs.length} unit="명" sub={assigneeMembers.length ? Math.round(approvedProofs.length / assigneeMembers.length * 100) + "%" : "0%"} icon={<IconCheck color="#00A879" />} color="#00A879" compact={isMobile} onClick={function() { props.onTab("certs"); }} />
           <DashMetric label="미제출" value={notSubmitted.length} unit="명" sub={assigneeMembers.length ? Math.round(notSubmitted.length / assigneeMembers.length * 100) + "%" : "0%"} icon={<NavWarn />} color="#FF5A1F" compact={isMobile} onClick={function() { props.onTab("uncert"); }} />
@@ -1939,7 +1939,7 @@ function AdminMission(props) {
           <div style={card({ padding: 0, overflow: "hidden" })}>
             <AdminCardSection title="자동 배정 미리보기" subtitle="학교별 자동 선택으로 계산한 대상자가 미션 저장 시 배정됩니다.">
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
-                <PreviewStat label="전체 학교" value={new Set(members.map(function(m) { return m.school; })).size} unit="개" />
+                <PreviewStat label="전체 학교" value={new Set(members.map(function(m) { return schoolKey(m.school); })).size} unit="개" />
                 <PreviewStat label="오늘 대상자" value={selected.size} unit="명" />
                 <PreviewSplitStat label="소규모 학교" rows={[{ label: "1인 학교", value: oneMemberSchools.length }, { label: "2인 학교", value: twoMemberSchools.length }]} />
                 <PreviewStat label="예상 게시글" value={selected.size} unit="건" />

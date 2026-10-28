@@ -7,7 +7,7 @@ import tempfile
 root = pathlib.Path(__file__).resolve().parents[1]
 
 schema = """
-create role anon; create role authenticated;
+create role anon; create role authenticated; create role service_role;
 create schema auth; create schema storage;
 create function auth.role() returns text language sql as $$ select current_setting('test.role',true) $$;
 create function mast_has_permission(text) returns boolean language sql as $$ select coalesce(current_setting('test.permission',true)=$1,false) $$;
@@ -25,7 +25,7 @@ create trigger mast_guard_write before insert or update on team_matching_members
 create trigger mast_guard_write before insert or update on promotion_mission_assignments for each row execute function mast_guard_write();
 """
 sql = schema + guard + triggers
-for file in ['member-school-sync.sql', 'promotion-proof-submission.sql', 'promotion-integrity.test.sql']:
+for file in ['member-school-sync.sql', 'promotion-proof-submission.sql', 'promotion-school-canonical.sql', 'promotion-integrity.test.sql']:
     sql += '\n' + (root / 'supabase' / file).read_text()
 with tempfile.TemporaryDirectory(prefix='mast-pg-') as temporary:
     folder = pathlib.Path(temporary)

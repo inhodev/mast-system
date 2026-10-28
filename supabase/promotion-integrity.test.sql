@@ -64,6 +64,9 @@ do $$ begin
 end $$;
 select set_config('test.role','service_role',true);
 update members set school='연세대학교(미래캠퍼스)';
+do $$ begin
+ if (select school from members limit 1) is distinct from '연세대학교(미래)' or (select school from team_matching_members limit 1) is distinct from '연세대학교(미래)' then raise exception 'School aliases not merged across linked rosters'; end if;
+end $$;
 select set_config('test.role','authenticated',true);
 do $$ declare result jsonb; begin
  begin
