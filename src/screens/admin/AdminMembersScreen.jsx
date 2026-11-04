@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { createScoreEvent, deleteAdminMember, deleteScoreEvent, getAdminMemberStatsRows, getMemberAdminSections, getMemberPositions, updateMemberAdminFields, updateScoreEvent } from '../../services/adminService'
 import { SCORE_RUBRIC } from '../../utils/activityWeather'
 import { ADMIN_SECTIONS, normalizeSections } from '../../utils/adminSections'
+import memberSchools from '../../data/member-schools.json'
 
 const GAINS = SCORE_RUBRIC.filter((item) => item.group === 'gain')
 const DEDUCTS = SCORE_RUBRIC.filter((item) => item.group === 'deduct')
@@ -299,7 +300,11 @@ function MemberDetailModal({ member, onClose, onSaved, onScoreChanged }) {
           <input value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
         <Field label="학교">
-          <input value={school} onChange={(event) => setSchool(event.target.value)} />
+          <select aria-label="학교·캠퍼스 선택" value={school} required onChange={(event) => setSchool(event.target.value)}>
+            <option value="" disabled>학교·캠퍼스를 선택하세요</option>
+            {school && !memberSchools.includes(school) && <option value={school}>{school} (현재 등록)</option>}
+            {memberSchools.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
         </Field>
         <Field label="기수">
           <input value={generation} onChange={(event) => setGeneration(event.target.value)} placeholder="예: 3" />
