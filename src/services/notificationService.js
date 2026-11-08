@@ -1,3 +1,4 @@
+import { promotionReminderTargets } from '../utils/promotionAssignmentPolicy.js'
 import { TABLES, requireSupabase, throwIfError } from './baseService'
 import { getNotifications } from './dataService'
 import { todayKST } from './promotionService'
@@ -197,8 +198,7 @@ export async function notifyPromotionTargets({ mission, assignees } = {}) {
   if (!resolvedAssignees.length) throw new Error('오늘 홍보 대상자가 없습니다.')
 
   // 미제출자에게만 발송: 제출/승인/지각완료 상태는 제외
-  const SUBMITTED = ['submitted', 'approved', 'late']
-  const pending = resolvedAssignees.filter((a) => !SUBMITTED.includes(String(a.status ?? '').toLowerCase()))
+  const pending = promotionReminderTargets(resolvedAssignees)
   if (!pending.length) throw new Error('미제출자가 없습니다. 대상자 전원이 인증을 완료했어요.')
 
   const { data: members, error: memberError } = await client

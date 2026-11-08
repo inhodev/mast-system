@@ -1,3 +1,5 @@
+import GroupPromotionMission from "./screens/admin/GroupPromotionMission.jsx";
+import { groupSchool, groupPrediction } from "./utils/promotionGroupRotation.js";
 import { isPromotionTarget, promotionSubmissionError } from "./utils/promotionAssignmentPolicy.js";
 import { promotionIntervalDays, promotionCopyForSchool, promotionSchoolKey, schoolRotationHistory, isSchoolRotationDue, allowsExistingPostProof, nextPromotionDate, nextRotationMember } from "./utils/promotionSchoolRules.js";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -452,6 +454,7 @@ function MemberHome(props) {
   var _assignmentHistory = useState([]), assignmentHistory = _assignmentHistory[0], setAssignmentHistory = _assignmentHistory[1];
   var _predictionHistory = useState([]), predictionHistory = _predictionHistory[0], setPredictionHistory = _predictionHistory[1];
   var _predictionUnavailable = useState(false), predictionUnavailable = _predictionUnavailable[0], setPredictionUnavailable = _predictionUnavailable[1];
+  var _groupRotation = useState(null), groupRotation = _groupRotation[0], setGroupRotation = _groupRotation[1];
   var _records = useState([]), records = _records[0], setRecords = _records[1];
   var _loading = useState(true), loading = _loading[0], setLoading = _loading[1];
   var _showAllAssignees = useState(false), showAllAssignees = _showAllAssignees[0], setShowAllAssignees = _showAllAssignees[1];
@@ -461,14 +464,16 @@ function MemberHome(props) {
   var load = useCallback(async function() {
     setLoading(true);
     setPredictionUnavailable(false);
+    var rotationResult = await supabase.rpc("mast_promotion_rotation");
+    setGroupRotation(rotationResult.error ? null : rotationResult.data);
     var r1 = await fetchVisibleMemberMission(today);
     var missionRow = r1.data || null;
     setMission(missionRow);
     setMyAssignment(null); setMyProof(null); setAssignees([]);
     var rm = await supabase.from("members").select("id,name,gi,school,status");
     setMembers((rm.data || []).filter(function(m) { return (m.status || "active") === "active"; }));
-    var rh = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").lte("mission_date", today).order("mission_date", { ascending: false });
-    setPredictionUnavailable(!!rm.error || !!rh.error);
+    var rh = await supabase.from("promotion_assignment_status_view").select("member_id, member_name, gi, school, mission_date, status").order("mission_date", { ascending: false });
+    setPredictionUnavailable(!!rm.error || !!rh.error || !!rotationResult.error);
     setPredictionHistory(rh.data || []);
     setAssignmentHistory((rh.data || []).filter(function(row) { return isPromotionTarget(row) && row.mission_date < today; }));
     if (missionRow) {
@@ -508,7 +513,8 @@ function MemberHome(props) {
   var assigneeMap = {};
   assignees.forEach(function(a) { assigneeMap[a.member_id] = a; });
   function rotationOrderedMembers(schoolMembers, todayPeople, historyRows) {
-    var sorted = sortMembersByKoreanName(schoolMembers);
+    var contextSchool = groupSchool(groupRotation, schoolMembers[0]?.school);
+    var sorted = contextSchool?.members?.length ? contextSchool.members : sortMembersByKoreanName(schoolMembers);
     if (!sorted.length) return [];
     var startId = todayPeople[0] ? todayPeople[0].member_id : "";
     if (!startId && historyRows[0]) {
@@ -527,7 +533,7 @@ function MemberHome(props) {
     var idx = ordered.findIndex(function(m) { return m.id === targetId; });
     if (idx < 0) return null;
     // 학교별 홍보 주기로 다음 순번까지 남은 일수를 계산합니다.
-    var interval = promotionIntervalDays(sorted[0]?.school);
+    var interval = groupRotation ? groupRotation.interval_days * 3 : promotionIntervalDays(sorted[0]?.school);
     var baseDelay = 0;
     if (!todayPeople.length && last) {
       // 오늘 배정자가 아직 없으면, 마지막 배정일 기준 다음 순번까지 남은 일수로 시작
@@ -542,8 +548,11 @@ function MemberHome(props) {
     var historyRows = assignmentHistory.filter(function(a) { return schoolKey(a.school) === schoolKey(session.member.school); });
     return daysUntilMemberTurn(mySchoolMembers, todayPeople, historyRows, memberId);
   }
-  var predictedDate = predictionUnavailable ? null : nextPromotionDate({ member: session.member, members: members, assignments: predictionHistory, today: today });
-  var myTurnDays = estimateMyTurnDays();
+  var groupForecast = predictionUnavailable ? null : groupPrediction({ rotation: groupRotation, member: session.member, assignments: predictionHistory, today: today });
+  var predictedDate = groupForecast?.date || null;
+  var mySchoolGroup = groupSchool(groupRotation, session.member.school);
+  var upcomingGroup = groupRotation?.rounds?.find(function(r) { return r.mission_date >= today; })?.rotation_group || groupRotation?.next_group;
+  var myTurnDays = predictedDate ? Math.max(0, daysBetweenKST(today, predictedDate)) : null;
   var myTurnText = myAssignment?.status === ST.EXEMPTED ? "이번 미션은 면제되었어요" : isAssignee ? "오늘 내 순번이에요" : (myTurnDays == null ? "내 순번 계산 중" : "내 순번까지 약 " + myTurnDays + "일");
   var schoolKeys = {};
   assignees.forEach(function(a) { schoolKeys[schoolKey(a.school)] = a.school; });
@@ -581,6 +590,7 @@ function MemberHome(props) {
 
   return (
     <div style={{ padding: "14px 12px 18px", background: "transparent", minHeight: "calc(100vh - 84px)" }}>
+      {!loading && mySchoolGroup && <div style={homeCard({ padding: "14px 18px", color: "#13264a" })}><b>내 학교 {mySchoolGroup.group_code}조</b> · {mission?.rotation_group ? "이번 미션 " + mission.rotation_group + "조" : "다음 미션 " + upcomingGroup + "조"}<div style={{ fontSize: 12, marginTop: 7, lineHeight: 1.6 }}>학교별 9일마다 한 명씩 순환합니다. {isAssignee ? "이번 미션의 담당자입니다." : "이번 미션은 제출 의무와 미제출 감점이 없습니다."}</div></div>}
       {loading ? (
         <div style={homeCard({ textAlign: "center", color: SUB })}>불러오는 중...</div>
       ) : !mission ? (
@@ -614,7 +624,7 @@ function MemberHome(props) {
       {!loading && <div style={homeCard({ padding: "16px 18px" })}>
         <div style={{ fontSize: 13, fontWeight: 800, color: SUB, marginBottom: 7 }}>{isAssignee ? "확정된 내 미션" : "다음 홍보 예상일"}</div>
         <div style={{ fontSize: 20, lineHeight: "28px", fontWeight: 900, color: "#08235E" }}>{isAssignee ? fmtDate(mission.mission_date) : predictedDate ? fmtDate(predictedDate) : "예상일을 확인하지 못했어요"}</div>
-        {!isAssignee && <div style={{ marginTop: 6, fontSize: 12, lineHeight: "18px", color: SUB }}>{predictedDate ? "학교별 배정 이력 기준 예상일이며, 실제 미션 배정에 따라 달라질 수 있어요." : "잠시 후 새로고침해서 확인해 주세요."}</div>}
+        {!isAssignee && <div style={{ marginTop: 6, fontSize: 12, lineHeight: "18px", color: SUB }}>{predictedDate ? "조별 일정과 학교 안 순번 기준 예상일이며, 실제 미션 확정에 따라 달라질 수 있어요." : "잠시 후 새로고침해서 확인해 주세요."}</div>}
       </div>}
 
       {mission && isAssignee && (
@@ -1235,7 +1245,7 @@ function AdminApp(props) {
 
       <div style={{ flex: 1, padding: embedded ? "8px 18px 24px" : compactNav ? "12px 8px 24px" : "26px 34px", overflow: "auto", minHeight: compactNav ? "auto" : "100vh", maxWidth: compactNav ? "100%" : 1440, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         {tab === "dashboard" && <AdminDashboard onTab={setTab} embedded={embedded} />}
-        {tab === "mission" && <AdminMission session={props.session} />}
+        {tab === "mission" && <GroupPromotionMission session={props.session} />}
         {tab === "history" && <AdminMissionHistory />}
         {tab === "members" && <AdminMembers />}
         {tab === "certs" && <AdminCerts />}
@@ -2146,7 +2156,7 @@ function AdminMissionHistory() {
       var dueAt = exactIsoKST(editDueDate, editDueTime);
       var lateUntilAt = new Date(new Date(dueAt).getTime() + 24 * 60 * 60 * 1000).toISOString();
       var row = {
-        mission_date: editMissionDate,
+        mission_date: editMission.rotation_round != null ? editMission.mission_date : editMissionDate,
         title: editTitle.trim(),
         body: editBody.trim() || null,
         post_title: editPostTitle.trim(),
@@ -2169,6 +2179,7 @@ function AdminMissionHistory() {
   }
 
   async function deleteHistoryMission(m) {
+    if (m.rotation_round != null) { setEditMsg("조별 미션은 배정과 인증 이력 보존을 위해 삭제할 수 없습니다."); return; }
     if (!confirm("과거 미션 \"" + m.title + "\" 을(를) 삭제하시겠습니까?\n관련 배정과 인증 기록도 함께 삭제됩니다.")) return;
     setEditMsg("");
     if (m.mission_image_path) await supabase.storage.from(MISSION_BUCKET).remove([m.mission_image_path]);

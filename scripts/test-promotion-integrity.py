@@ -14,6 +14,7 @@ create function mast_has_permission(text) returns boolean language sql as $$ sel
 create function mast_current_legacy_id() returns uuid language sql as $$ select '00000000-0000-0000-0000-000000000001'::uuid $$;
 create table members(id uuid primary key, school text);
 create table team_matching_members(id integer primary key,mast_member_id uuid references members,school text,role text,admin_sections text[],roster_status text,is_leader boolean,updated_at timestamptz);
+create table promotion_missions(id uuid primary key,mission_date date,rotation_round integer);
 create table promotion_mission_assignments(id uuid primary key,member_id uuid,mission_id uuid,status text,due_at timestamptz,late_until_at timestamptz,reviewed_at timestamptz,reviewed_by_member_id uuid,submitted_at timestamptz,status_reason text);
 create table promotion_proofs(id uuid primary key default gen_random_uuid(),assignment_id uuid unique,mission_id uuid,member_id uuid,proof_file_path text,proof_image_url text,submitted_at timestamptz);
 create table storage.objects(bucket_id text,name text);
