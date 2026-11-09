@@ -26,3 +26,14 @@ test('resting members have no penalties or reminders, exemptions are excluded, h
  assert.deepEqual(promotionMissItems(assignments,missions,Date.parse('2026-11-10')).map(x=>x.id),['promo-old'])
  assert.deepEqual(promotionReminderTargets([...assignments,{status:'submitted'},{status:'late'},{status:'approved'}]).map(x=>x.id),['old','current'])
 })
+
+
+test('daily A/B/C cadence repeats each school every three days and retains confirmed assignments',()=>{
+ const daily={...rotation,interval_days:1}
+ const base={rotation:daily,member:{id:'woo',school:'테스트대학교'},today:'2026-11-09'}
+ assert.equal(groupPrediction(base).date,'2026-11-12')
+ assert.equal(groupPrediction({...base,member:{id:'kim',school:'테스트대학교'}}).date,'2026-11-15')
+ const afterA={...daily,next_round:1,next_group:'B',next_date:'2026-11-11'}
+ assert.equal(groupPrediction({...base,rotation:afterA}).date,'2026-11-12')
+ assert.equal(groupPrediction({...base,rotation:afterA,assignments:[{member_id:'woo',mission_date:'2026-11-16',status:'pending'}]}).date,'2026-11-16')
+})

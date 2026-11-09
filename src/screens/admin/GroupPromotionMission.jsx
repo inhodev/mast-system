@@ -93,7 +93,7 @@ export default function GroupPromotionMission({ session }) {
 
   return <section style={{ maxWidth: 1100, margin: 'auto' }}>
     <h1 style={{ color: '#13264a', fontSize: 26 }}>조별 홍보 미션</h1>
-    <p>3일마다 A → B → C조 순환 · 학교별 1명 · 같은 학교는 9일마다 다음 담당자</p>
+    <p>매일 A → B → C조 순환 · 학교별 1명 · 같은 학교는 3일마다 다음 담당자</p>
     {error && <p role="alert" style={{ color: '#b42318', whiteSpace: 'pre-wrap' }}>{error}</p>}
     {message && <p role="status" style={{ color: '#176b4a' }}>{message}</p>}
     <div style={cardStyle}>

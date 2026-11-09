@@ -1,6 +1,6 @@
 begin;
 create table if not exists public.promotion_rotation_config (
- id boolean primary key default true check (id), start_date date not null, interval_days integer not null default 3 check(interval_days=3)
+ id boolean primary key default true check (id), start_date date not null, interval_days integer not null default 1 check(interval_days=1)
 );
 create table if not exists public.promotion_school_groups (
  school_key text primary key, school_name text not null, group_code text not null check(group_code in ('A','B','C')),

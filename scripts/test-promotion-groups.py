@@ -27,6 +27,7 @@ for group,sizes in [('A',[7,3,3,2,2,2,2,1,1,1,1,1,1]),('B',[7,3,3,2,2,2,2,1,1,1,
    sql+='insert into members values('+','.join(literal(v) for v in [mid,f'회원{member_no:02}','1기',school,'active'])+');\n'
   seeds.append('('+','.join([literal(school.lower()),literal(school),literal(group),'array['+','.join(literal(v)+'::uuid' for v in ids)+']'])+')')
 sql+=(root/'supabase/promotion-group-rotation.sql').read_text()
+sql+=(root/'supabase/promotion-daily-rotation.sql').read_text()
 sql+='insert into promotion_school_groups values '+','.join(seeds)+';\n'
 sql+=(root/'supabase/promotion-proof-submission.sql').read_text()
 sql+=(root/'supabase/promotion-group-rotation.test.sql').read_text()

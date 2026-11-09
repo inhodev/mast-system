@@ -23,6 +23,7 @@ begin
    where a.mission_id=(result->>'id')::uuid and sg.group_code<>result->>'rotation_group') then raise exception 'Resting group assigned'; end if;
   insert into test_missions values((result->>'id')::uuid,r);
   select count(*) into before_count from promotion_mission_assignments;
+  if (mast_promotion_rotation()->>'next_date')::date<>day+1 then raise exception 'Daily next date did not advance one day';end if;
   perform mast_save_promotion_round(j,r,expected);
   if (mast_promotion_rotation()->>'next_round')::integer<>r+1 or (select count(*) from promotion_mission_assignments)<>before_count then raise exception 'Duplicate save consumed round or duplicated assignment'; end if;
  end loop;

@@ -590,7 +590,7 @@ function MemberHome(props) {
 
   return (
     <div style={{ padding: "14px 12px 18px", background: "transparent", minHeight: "calc(100vh - 84px)" }}>
-      {!loading && mySchoolGroup && <div style={homeCard({ padding: "14px 18px", color: "#13264a" })}><b>내 학교 {mySchoolGroup.group_code}조</b> · {mission?.rotation_group ? "이번 미션 " + mission.rotation_group + "조" : "다음 미션 " + upcomingGroup + "조"}<div style={{ fontSize: 12, marginTop: 7, lineHeight: 1.6 }}>학교별 9일마다 한 명씩 순환합니다. {isAssignee ? "이번 미션의 담당자입니다." : "이번 미션은 제출 의무와 미제출 감점이 없습니다."}</div></div>}
+      {!loading && mySchoolGroup && <div style={homeCard({ padding: "14px 18px", color: "#13264a" })}><b>내 학교 {mySchoolGroup.group_code}조</b> · {mission?.rotation_group ? "이번 미션 " + mission.rotation_group + "조" : "다음 미션 " + upcomingGroup + "조"}<div style={{ fontSize: 12, marginTop: 7, lineHeight: 1.6 }}>학교별 3일마다 한 명씩 순환합니다. {isAssignee ? "이번 미션의 담당자입니다." : "이번 미션은 제출 의무와 미제출 감점이 없습니다."}</div></div>}
       {loading ? (
         <div style={homeCard({ textAlign: "center", color: SUB })}>불러오는 중...</div>
       ) : !mission ? (
